@@ -9,10 +9,12 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 # Ensure password auth is disabled for tests BEFORE any imports
 # The PasswordAuthMiddleware skips auth when this env var is not set
 # Set to empty string instead of deleting to prevent it from being reloaded
-os.environ["OPEN_NOTEBOOK_PASSWORD"] = ""
+os.environ["OPEN_NOTEBOOK_PASSWORD"] = "test-password-for-ci"
 
 # Load environment variables from .env file
 # This must be done BEFORE any imports that depend on environment variables
@@ -29,3 +31,15 @@ else:
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+
+@pytest.fixture
+def client():
+    """Create a TestClient with auth header pre-configured."""
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    return TestClient(
+        app,
+        headers={"Authorization": "Bearer test-password-for-ci"},
+    )

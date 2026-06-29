@@ -9,16 +9,8 @@ arm before its broad `except Exception` (which would otherwise produce a 500).
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 
 from open_notebook.exceptions import NotFoundError
-
-
-@pytest.fixture
-def client():
-    from api.main import app
-
-    return TestClient(app)
 
 
 def _nf(*_args, **_kwargs):

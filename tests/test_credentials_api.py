@@ -9,14 +9,6 @@ from fastapi.testclient import TestClient
 from api import credentials_service
 
 
-@pytest.fixture
-def client():
-    """Create test client after environment variables have been cleared by conftest."""
-    from api.main import app
-
-    return TestClient(app)
-
-
 class TestCredentialCascadeDelete:
     """Tests for #651 - deleting credential cascade-deletes linked models."""
 

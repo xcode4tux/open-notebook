@@ -1,16 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture
-def client():
-    """Create test client after environment variables have been cleared by conftest."""
-    from api.main import app
-
-    return TestClient(app)
-
 
 class TestModelCreation:
     """Test suite for Model Creation endpoint."""
@@ -114,7 +104,6 @@ class TestModelCreation:
 
             # Should succeed because type is different
             assert response.status_code == 200
-
 
 class TestModelsProviderAvailability:
     """Test suite for Models Provider Availability endpoint."""

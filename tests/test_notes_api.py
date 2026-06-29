@@ -1,16 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture
-def client():
-    """Create test client after environment variables have been cleared by conftest."""
-    from api.main import app
-
-    return TestClient(app)
-
 
 class TestNoteCreation:
     """Test suite for Note API endpoints."""
@@ -63,7 +53,6 @@ class TestNoteCreation:
         assert response.status_code == 200
         data = response.json()
         assert data["command_id"] is None
-
 
 class TestNoteUpdate:
     """Test suite for Note update endpoint."""

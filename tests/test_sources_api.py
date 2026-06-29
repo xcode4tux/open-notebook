@@ -4,19 +4,9 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 
 from open_notebook.config import UPLOADS_FOLDER
 from open_notebook.domain.notebook import Source
-
-
-@pytest.fixture
-def client():
-    """Create test client after environment variables have been cleared by conftest."""
-    from api.main import app
-
-    return TestClient(app)
-
 
 class TestAsyncSourceAssetPersistence:
     """Tests for #627 - asset is persisted before async processing.
@@ -137,7 +127,6 @@ class TestAsyncSourceAssetPersistence:
         source = saved_sources[0]
         assert source.asset is None
 
-
 class TestRetrySourceProcessing:
     """POST /sources/{id}/retry must find a source's notebooks via the reference
     edge's in/out columns, not a non-existent `source` column (#861)."""
@@ -196,7 +185,6 @@ class TestRetrySourceProcessing:
         assert response.status_code == 400
         assert "not associated with any notebooks" in response.json()["detail"]
 
-
 class TestGetSourceNotFound:
     """GET /sources/{id} must return 404 (not 500) for a missing/deleted source.
     `Source.get()` raises NotFoundError rather than returning None, so the handler
@@ -212,7 +200,6 @@ class TestGetSourceNotFound:
         response = client.get("/api/sources/source:gone")
 
         assert response.status_code == 404
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

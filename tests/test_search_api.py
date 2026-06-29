@@ -1,16 +1,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture
-def client():
-    """Create test client after environment variables have been cleared by conftest."""
-    from api.main import app
-
-    return TestClient(app)
-
 
 class TestSearchLimitValidation:
     """SearchRequest.limit must reject non-positive values (#863)."""
@@ -39,7 +29,6 @@ class TestSearchLimitValidation:
         )
         assert response.status_code == 200
         mock_text_search.assert_awaited_once()
-
 
 class TestTextSearchHighlightOverflowFallback:
     """text_search() must fall back to vector search on a highlight position overflow (#648)."""
