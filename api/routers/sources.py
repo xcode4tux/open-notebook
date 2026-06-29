@@ -1,7 +1,10 @@
 import asyncio
+import ipaddress
 import os
+import re
 from pathlib import Path
 from typing import Any, List, Optional
+from urllib.parse import urlparse
 
 from fastapi import (
     APIRouter,
@@ -34,6 +37,46 @@ from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.notebook import Asset, Notebook, Source
 from open_notebook.domain.transformation import Transformation
 from open_notebook.exceptions import InvalidInputError, NotFoundError
+
+# ─── SSRF Protection ───────────────────────────────────────────────────────────
+
+_PRIVATE_IP_PATTERNS = [
+    re.compile(r"^127\.\d+\.\d+\.\d+$"),       # loopback
+    re.compile(r"^10\.\d+\.\d+\.\d+$"),          # RFC 1918 10.0.0.0/8
+    re.compile(r"^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$"),  # RFC 1918 172.16.0.0/12
+    re.compile(r"^192\.168\.\d+\.\d+$"),          # RFC 1918 192.168.0.0/16
+    re.compile(r"^0\.0\.0\.0$"),
+    re.compile(r"^169\.254\.\d+\.\d+$"),          # link-local
+    re.compile(r"^::1$"),                         # IPv6 loopback
+    re.compile(r"^fc00:|^fd00:|^fe80:"),          # IPv6 private/link-local
+]
+
+
+def _validate_source_url(url: str) -> None:
+    """SSRF guard: reject URLs pointing to private/internal networks."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail=f"URL scheme '{parsed.scheme}' not allowed (use http/https)")
+
+    host = parsed.hostname
+    if not host:
+        raise HTTPException(status_code=400, detail="URL must have a valid hostname")
+
+    # Block bare IPs in private ranges
+    for pattern in _PRIVATE_IP_PATTERNS:
+        if pattern.match(host):
+            raise HTTPException(
+                status_code=400,
+                detail="URL points to a private/internal network host — not allowed",
+            )
+
+    # Block hostnames like "localhost", "127.0.0.1.nip.io" that resolve to local
+    if host == "localhost" or host.endswith(".local") or host.endswith(".internal"):
+        raise HTTPException(
+            status_code=400,
+            detail="URL points to a local/internal hostname — not allowed",
+        )
+
 
 router = APIRouter()
 
@@ -348,6 +391,8 @@ async def create_source(
                 raise HTTPException(
                     status_code=400, detail="URL is required for link type"
                 )
+            # SSRF protection: reject URLs pointing to private/internal networks
+            _validate_source_url(source_data.url)
             content_state["url"] = source_data.url
         elif source_data.type == "upload":
             # Use uploaded file path or provided file_path (backward compatibility)

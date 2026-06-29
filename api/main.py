@@ -74,14 +74,21 @@ def _cors_headers(request: Request) -> dict[str, str]:
     credentials). Omits `Access-Control-Allow-Origin` for disallowed
     origins so the browser blocks the error body from leaking cross-origin.
     """
-    origin = request.headers.get("origin")
+    origin = request.headers.get("origin") or ""
+    is_wildcard = CORS_ALLOWED_ORIGINS == ["*"]
+    origin_allowed = bool(origin and (is_wildcard or origin in CORS_ALLOWED_ORIGINS))
+
     headers: dict[str, str] = {
-        "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "*",
         "Access-Control-Allow-Headers": "*",
     }
 
-    if origin and ("*" in CORS_ALLOWED_ORIGINS or origin in CORS_ALLOWED_ORIGINS):
+    # Per CORS spec: credentials + wildcard is invalid, so reflect the origin
+    if origin_allowed:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    elif is_wildcard:
+        headers["Access-Control-Allow-Origin"] = "*"
         headers["Access-Control-Allow-Origin"] = origin
         headers["Vary"] = "Origin"
 
@@ -220,10 +227,13 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
     FastAPI, this handler won't be called. In that case, configure your reverse proxy
     to add CORS headers to error responses.
     """
+    merged_headers = {**(exc.headers or {}), **_cors_headers(request)}
+    # Filter out None values (Starlette's Response.init_headers encodes values)
+    merged_headers = {k: v for k, v in merged_headers.items() if v is not None}
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
-        headers={**(exc.headers or {}), **_cors_headers(request)},
+        headers=merged_headers,
     )
 
 
