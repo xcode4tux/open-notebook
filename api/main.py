@@ -112,6 +112,14 @@ async def lifespan(app: FastAPI):
             "Set OPEN_NOTEBOOK_ENCRYPTION_KEY to any secret string."
         )
 
+    # Security check: Auth password — fail hard if not configured
+    if not get_secret_from_env("OPEN_NOTEBOOK_PASSWORD"):
+        logger.error(
+            "OPEN_NOTEBOOK_PASSWORD is not set. The API will reject all requests. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\" "
+            "and set it as OPEN_NOTEBOOK_PASSWORD."
+        )
+
     # Run database migrations
 
     try:
@@ -150,7 +158,12 @@ async def lifespan(app: FastAPI):
     # Yield control to the application
     yield
 
-    # Shutdown: cleanup if needed
+    # Shutdown: close DB connection
+    try:
+        from open_notebook.database.repository import close_connection
+        await close_connection()
+    except Exception:
+        pass
     logger.info("API shutdown complete")
 
 

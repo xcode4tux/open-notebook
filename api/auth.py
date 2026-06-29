@@ -19,6 +19,7 @@ class PasswordAuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, excluded_paths: Optional[list] = None):
         super().__init__(app)
         self.password = get_secret_from_env("OPEN_NOTEBOOK_PASSWORD")
+        self._password_configured = self.password is not None
         self.excluded_paths = excluded_paths or [
             "/",
             "/health",
@@ -28,8 +29,15 @@ class PasswordAuthMiddleware(BaseHTTPMiddleware):
         ]
 
     async def dispatch(self, request: Request, call_next):
-        # Skip authentication if no password is set
-        if not self.password:
+        # Fail closed if no password is configured
+        if not self._password_configured:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Server not configured: OPEN_NOTEBOOK_PASSWORD must be set"},
+            )
+
+        # Skip authentication for excluded paths
+        if request.url.path in self.excluded_paths:
             return await call_next(request)
 
         # Skip authentication for excluded paths
